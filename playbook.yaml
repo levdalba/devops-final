@@ -81,5 +81,8 @@
         src: k8s-deployment.yaml
         dest: /tmp/k8s-deployment.yaml
 
+    - name: Delete old Pod (to allow spec changes)
+      shell: kubectl delete pod myapp-pod --ignore-not-found=true --wait=true
+
     - name: Apply Manifest
       shell: kubectl apply -f /tmp/k8s-deployment.yaml
