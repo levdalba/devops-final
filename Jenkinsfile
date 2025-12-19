@@ -37,7 +37,6 @@ pipeline {
                 sshagent([SSH_CREDS_ID]) {
                     script {
                         echo 'Deploying to Target...'
-                        
                         sh "ssh -o StrictHostKeyChecking=no root@${TARGET_HOST} 'mkdir -p /opt/myapp'"
                         sh "scp -o StrictHostKeyChecking=no index.js root@${TARGET_HOST}:/tmp/index.js"
                         sh "scp -o StrictHostKeyChecking=no -r node_modules root@${TARGET_HOST}:/tmp/node_modules"
@@ -85,21 +84,22 @@ pipeline {
                 sshagent([SSH_CREDS_ID]) {
                     script {
                         echo 'Deploying to Kubernetes...'
-                        sh "ssh -o StrictHostKeyChecking=no root@${K8S_HOST} 'mkdir -p /tmp/k8s_build'"
-                        sh "scp -o StrictHostKeyChecking=no Dockerfile index.js root@${K8S_HOST}:/tmp/k8s_build/"
-                        sh "scp -o StrictHostKeyChecking=no -r node_modules root@${K8S_HOST}:/tmp/k8s_build/"
                         
+                        echo 'Saving image from Docker host...'
+                        sh "ssh -o StrictHostKeyChecking=no root@${DOCKER_HOST} 'docker save myapp:latest -o /tmp/myapp.tar'"
+                        
+                        echo 'Transferring image to Kubernetes host...'
+                        sh "scp -o StrictHostKeyChecking=no root@${DOCKER_HOST}:/tmp/myapp.tar ./myapp.tar"
+                        sh "scp -o StrictHostKeyChecking=no ./myapp.tar root@${K8S_HOST}:/tmp/myapp.tar"
+                        
+                        echo 'Importing image...'
                         sh """
                             ssh -o StrictHostKeyChecking=no root@${K8S_HOST} '
-                                cd /tmp/k8s_build
-                                if command -v nerdctl &> /dev/null; then
-                                    nerdctl build -n k8s.io -t myapp:latest .
-                                else
-                                    docker build -t myapp:latest .
-                                fi
+                                ctr -n k8s.io images import /tmp/myapp.tar
                             '
                         """
 
+                        echo 'Applying Kubernetes manifest...'
                         sh "scp -o StrictHostKeyChecking=no k8s-deployment.yaml root@${K8S_HOST}:/tmp/"
                         sh "ssh -o StrictHostKeyChecking=no root@${K8S_HOST} 'kubectl apply -f /tmp/k8s-deployment.yaml'"
                     }
