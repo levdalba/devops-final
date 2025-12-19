@@ -11,8 +11,10 @@ pipeline {
                 script {
                     echo 'Installing Dependencies...'
                     sh 'sudo apt-get update'
-                    sh 'sudo apt-get install -y ansible nodejs'
+
+                    sh 'sudo apt-get install -y ansible nodejs npm' 
                     
+                    echo 'Installing Project Dependencies...'
                     sh 'npm install express'
                 }
             }
