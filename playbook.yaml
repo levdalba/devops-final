@@ -1,0 +1,86 @@
+---
+- name: Deploy to Target (Systemd)
+  hosts: targets
+  tasks:
+    - name: Create app directory
+      file:
+        path: /opt/myapp
+        state: directory
+
+    - name: Copy app files
+      copy:
+        src: "{{ item }}"
+        dest: /opt/myapp/
+      loop:
+        - index.js
+        - package.json
+        - node_modules 
+
+    - name: Install dependencies (if not already there)
+      shell: npm install
+      args:
+        chdir: /opt/myapp
+
+    - name: Copy Systemd service
+      copy:
+        src: myapp.service
+        dest: /etc/systemd/system/myapp.service
+
+    - name: Start and Enable Service
+      systemd:
+        name: myapp
+        state: restarted
+        enabled: yes
+        daemon_reload: yes
+
+- name: Deploy to Docker Host
+  hosts: dockers
+  tasks:
+    - name: Create build directory
+      file:
+        path: /tmp/myapp_build
+        state: directory
+
+    - name: Copy build files
+      copy:
+        src: "{{ item }}"
+        dest: /tmp/myapp_build/
+      loop:
+        - Dockerfile
+        - index.js
+        - node_modules
+
+    - name: Build and Run Container
+      shell: |
+        cd /tmp/myapp_build
+        docker build -t myapp:latest .
+        docker rm -f myapp-container || true
+        docker run -d -p 4444:4444 --name myapp-container myapp:latest
+    
+    - name: Save Docker Image for K8s
+      shell: docker save myapp:latest -o /tmp/myapp.tar
+
+    - name: Fetch Docker Image to Jenkins
+      fetch:
+        src: /tmp/myapp.tar
+        dest: /tmp/myapp.tar
+        flat: yes
+
+- name: Deploy to Kubernetes
+  hosts: k8s
+  tasks:
+    - name: Copy Docker Image from Jenkins
+      copy:
+        src: /tmp/myapp.tar
+        dest: /tmp/myapp.tar
+
+    - name: Import Image to Containerd
+      shell: ctr -n k8s.io images import /tmp/myapp.tar
+
+    - name: Copy Manifest
+      copy:
+        src: k8s-deployment.yaml
+        dest: /tmp/k8s-deployment.yaml
+
+    - name: Apply Manifest
+      shell: kubectl apply -f /tmp/k8s-deployment.yaml
