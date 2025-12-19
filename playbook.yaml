@@ -14,7 +14,6 @@
       loop:
         - index.js
         - package.json
-        - node_modules 
 
     - name: Install dependencies (if not already there)
       shell: npm install
