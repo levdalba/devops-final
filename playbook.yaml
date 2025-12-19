@@ -2,6 +2,15 @@
 - name: Deploy to Target (Systemd)
   hosts: targets
   tasks:
+    - name: Install Node.js and NPM
+      apt:
+        name:
+          - nodejs
+          - npm
+        state: present
+        update_cache: yes
+
+
     - name: Create app directory
       file:
         path: /opt/myapp
@@ -82,7 +91,6 @@
         dest: /tmp/k8s-deployment.yaml
 
     - name: Delete old Pods (cleanup name and ports)
-
       shell: kubectl delete pod myapp-pod myapp --ignore-not-found=true --wait=true
 
     - name: Apply Manifest
