@@ -9,9 +9,9 @@ pipeline {
         stage('Setup Environment') {
             steps {
                 script {
-                    sh 'curl -fsSL https://deb.nodesource.com/setup_24.x -o nodesource_setup.sh'
-                    sh 'sudo -E bash nodesource_setup.sh'
-                    sh 'sudo apt-get install -y nodejs ansible'
+                    echo 'Installing Dependencies...'
+                    sh 'sudo apt-get update'
+                    sh 'sudo apt-get install -y ansible nodejs'
                     
                     sh 'npm install express'
                 }
